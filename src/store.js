@@ -13,3 +13,7 @@ export const myuser = writable({
 	deletedAt: null,
 	phone: null
 });
+
+export const allUser = writable({
+	users: []
+})

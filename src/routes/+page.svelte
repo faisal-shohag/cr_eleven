@@ -1,21 +1,27 @@
 <script>
 	import { onDestroy, onMount } from 'svelte';
-	import { myuser } from '../store';
+	import { myuser, allUser } from '../store';
 	import { goto } from '$app/navigation';
 	import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 	import App from '../firebase';
-	import { getDatabase, ref, set, onValue } from 'firebase/database';
+	import { getDatabase, ref, set, onValue, update} from 'firebase/database';
 	import ProfileCard from '../components/ProfileCard.svelte';
+	import UserList from '../components/UserList.svelte';
 	const db = getDatabase(App);
 	const auth = getAuth(App);
 
 	let me;
+	let users;
 
 	const unsubscribe = myuser.subscribe(async (data) => {
-		console.log(data);
+		//console.log(data);
 		me = data;
-
 	});
+
+	const un = allUser.subscribe(async (data) => {
+		users = data.users;
+		console.log(users);
+	})
 
 	onDestroy(unsubscribe);
 
@@ -33,8 +39,22 @@
 						id: (snap.val().id==undefined) ? null : snap.val().id,
 						blood: (snap.val().blood==undefined) ? null : snap.val().blood,
 						formal_name: (snap.val().formal_name==undefined) ? null : snap.val().formal_name,
+						sms: (snap.val().sms==undefined) ? null : snap.val().sms,
 					});
 				});
+
+				onValue(ref(db, 'users'), (snap) => {
+					let u = [];
+					snap.forEach(item=>{
+						//console.log(item.val());
+						u.push(item.val());
+					});
+
+					allUser.set({
+						users: u
+					});
+				});
+
 			} else {
 				console.warn('User is not logged in!');
 				goto('/login');
@@ -55,13 +75,27 @@
 
 
 {#if me.loggedIn}
-<ProfileCard name={me.name} avatar={me.photoUrl} id={me.id} phone={me.phone} blood={me.blood} formal_name={me.formal_name}>
+<ProfileCard sms={me.sms} name={me.name} avatar={me.photoUrl} id={me.id} phone={me.phone} blood={me.blood} formal_name={me.formal_name} email={me.email}>
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <div slot="edit_slot" on:click={gotoEdit} class="edit_button">Edit</div>
 </ProfileCard>
 <!-- svelte-ignore a11y-click-events-have-key-events -->
-<center><div class="logoutButton" on:click={logout}>Sign Out</div></center>
+<!-- <center><div class="logoutButton" on:click={logout}>Sign Out</div></center> -->
+{:else}
+<center>
+	<div class="loader">Loading...</div>
+</center>
+{/if}
 
+{#if users.length>0}
+<div class="count">ALL ({users.length})</div>
+ {#each users as user}
+	<UserList name={user.formal_name ? user.formal_name : user.name} photoUrl={user.photoUrl} phone={user.phone? user.phone : 'Not Provided!'} sms={user.sms ? user.sms : 'OFF'}/>
+ {/each}
+{:else}
+<center>
+	<div class="loader">Loading...</div>
+</center>
 {/if}
 
 
@@ -86,4 +120,12 @@
 		border-radius: 10px;
 		cursor: pointer;
 	}
+
+	.count{
+		font-size: 17px;
+		font-weight: bold;
+		margin: 10px 5px;
+	}
+	
+
 </style>
